@@ -43,4 +43,100 @@ library Paring {
             return G1Point(p.X, PRIME_Q - (p.Y % PRIME_Q));
         }
     }
+
+    function plus(
+        G1Point memory p1,
+        G1Point memory p2
+    ) internal view returns (G1Point memory r) {
+        uint256[4] memory input;
+        input[0] = p1.X;
+        input[1] = p1.Y;
+        input[2] = p2.X;
+        input[3] = p2.Y;
+        bool success;
+
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := staticcall(sub(gas(), 2000), 6, input, 0xc0, r, 0x60)
+            // Use "invalid" to make gas estimation work
+            switch success
+            case 0 {
+                invalid()
+            }
+        }
+
+        require(success, "pairing-add-failed");
+    }
+
+    function scalar_mul(
+        G1Point memory p,
+        uint256 s
+    ) internal view returns (G1Point memory r) {
+        uint256[3] memory input;
+        input[0] = p.X;
+        input[1] = p.Y;
+        input[2] = s;
+        bool success;
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := staticcall(sub(gas(), 2000), 7, input, 0x80, r, 0x60)
+            // Use "invalid" to make gas estimation work
+            switch success
+            case 0 {
+                invalid()
+            }
+        }
+        require(success, "pairing-mul-failed");
+    }
+
+    function pairing(
+        G1Point memory a1,
+        G2Point memory a2,
+        G1Point memory b1,
+        G2Point memory b2,
+        G1Point memory c1,
+        G2Point memory c2,
+        G1Point memory d1,
+        G2Point memory d2
+    ) internal view returns (bool) {
+        G1Point[4] memory p1 = [a1, b1, c1, d1];
+        G2Point[4] memory p2 = [a2, b2, c2, d2];
+
+        uint256 inputSize = 24;
+        uint256[] memory input = new uint256[](inputSize);
+
+        for (uint256 i = 0; i < 4; i++) {
+            uint256 j = i * 6;
+            input[j + 0] = p1[i].X;
+            input[j + 1] = p1[i].Y;
+            input[j + 2] = p2[i].X[0];
+            input[j + 3] = p2[i].X[1];
+            input[j + 4] = p2[i].Y[0];
+            input[j + 5] = p2[i].Y[1];
+        }
+
+        uint256[1] memory out;
+        bool success;
+
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := staticcall(
+                sub(gas(), 2000),
+                8,
+                add(input, 0x20),
+                mul(inputSize, 0x20),
+                out,
+                0x20
+            )
+            // Use "invalid" to make gas estimation work
+            switch success
+            case 0 {
+                invalid()
+            }
+        }
+
+        require(success, "pairing-opcode-failed");
+
+        return out[0] != 0;
+    }
 }
