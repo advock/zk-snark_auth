@@ -16,7 +16,8 @@ contract example {
         verifier = _verifier;
     }
 
-    function verifyUser() public {
+    function verifyUser(bytes calldata proof) public {
         require(!allowed[msg.sender], "already veridied ");
+        verifier.verifiyProof(proof, _input);
     }
 }
